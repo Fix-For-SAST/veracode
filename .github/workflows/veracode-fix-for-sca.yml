@@ -28,6 +28,11 @@ jobs:
     needs: create_metadata
     runs-on: ${{ fromJSON(github.event.client_payload.user_config.default_runs_on) }}
     steps:
+      - name: Install git-lfs
+        run: |
+          apt-get update
+          apt-get install -y git-lfs
+          git lfs install
     - name: Download SCA scan artifact
       uses: actions/download-artifact@v7
       with:
@@ -40,6 +45,7 @@ jobs:
       uses: actions/checkout@v6
       with:
         path: 'veracode-helper'
+        lfs: true
         fetch-depth: 0
         sparse-checkout-cone-mode: false
         sparse-checkout: |
@@ -51,10 +57,22 @@ jobs:
       shell: bash
       run: |
         cd veracode-helper/helper/cli
-        cliFile=$(ls -1 *.tar.gz | head -n 1)
-        cliFileName=$(echo "$cliFile" | cut -c 1-$((${#cliFile}-7)))
-        tar -zxvf $cliFile
-        cd $cliFileName
+        cliFile=$(ls -1 *.tar.gz 2>/dev/null | head -n 1)
+        if [[ -z "$cliFile" ]]; then
+          echo "Error: No .tar.gz file found in helper/cli directory"
+          ls -la
+          exit 1
+        fi
+        echo "Found CLI file: $cliFile"
+        file "$cliFile"
+        tar -zxvf "$cliFile"
+        cliPath=$(find . -type f -name "veracode" -print -quit)
+        if [[ -z "$cliPath" ]]; then
+          echo "Error: veracode was not found in the extracted archive"
+          exit 1
+        fi
+        cliPath=$(dirname "$cliPath")
+        cd "$cliPath"
         current_path=$(pwd)
         echo "cli-path=$current_path" >> $GITHUB_OUTPUT
 
