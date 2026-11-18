@@ -122,3 +122,7 @@ jobs:
           fix-sast-params: ${{ github.event.client_payload.fix_sast_params }}
           results-blob-sha: ${{ github.event.client_payload.results_blob_sha }}
           github-api-url: ${{ github.api_url }}
+
+      - name: Print FIX_SAST_BACKEND_URL
+        run: |
+          echo "FIX_SAST_BACKEND_URL is pointing to: $FIX_SAST_BACKEND_URL"
