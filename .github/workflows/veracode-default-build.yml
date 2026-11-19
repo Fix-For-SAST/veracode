@@ -60,10 +60,15 @@ jobs:
       VERACODE_API_KEY_SECRET: '${{ secrets.VERACODE_API_KEY }}'
 
     steps:
+      - name: Install git-lfs
+        run: |
+          apt-get update
+          apt-get install -y git-lfs
+          git lfs install
       - uses: actions/checkout@v6
         with:
           path: 'veracode-helper'
-          lfs: false
+          lfs: true
 
       - uses: actions/checkout@v6
         with:
@@ -71,7 +76,6 @@ jobs:
           ref: ${{ inputs.ref }}
           token: ${{ inputs.token }}
           path: 'source-code'
-          lfs: false
 
       - name: Package the application
         id: application_package_linux
@@ -134,11 +138,13 @@ jobs:
           echo "Running: $PACKAGE_CMD"
           eval "$PACKAGE_CMD"
 
+      # ---------------- Error handler ----------------
       - name: Package error
         if: failure()
         run: |
           echo "::error::Veracode static scan faced a problem. Please contact your Veracode administrator for more information."
 
+      # ---------------- Upload artifact ----------------
       - uses: actions/upload-artifact@v7
         with:
           name: veracode-artifact
@@ -155,10 +161,15 @@ jobs:
       VERACODE_API_KEY_SECRET: '${{ secrets.VERACODE_API_KEY }}'
 
     steps:
+      - name: Install git-lfs
+        run: |
+          apt-get update
+          apt-get install -y git-lfs
+          git lfs install
       - uses: actions/checkout@v6
         with:
           path: 'veracode-helper'
-          lfs: false
+          # lfs: true
 
       - uses: actions/checkout@v6
         with:
@@ -166,8 +177,7 @@ jobs:
           ref: ${{ inputs.ref }}
           token: ${{ inputs.token }}
           path: 'source-code'
-          lfs: false
-
+          
       - name: Run Pre-Build Dependency
         shell: pwsh
         run: |
@@ -184,27 +194,33 @@ jobs:
           $working_path = (Get-Location).Path
           cd "veracode-helper/helper/cli"
 
+          # Try to find ZIP files first (new format)
           $zipFiles = Get-ChildItem -Filter "*_windows_x86.zip" -ErrorAction SilentlyContinue
 
           if ($zipFiles) {
+            # Use ZIP files (new format)
             $cliFile = $zipFiles | Sort-Object { [version]($_.Name -replace '.*?(\d+\.\d+\.\d+).*','$1') } -Descending | Select-Object -First 1
             Write-Host "Found CLI ZIP file: $($cliFile.Name)"
 
+            # Extract the ZIP file to a clean directory
             $extractPath = "./cli-extracted"
             if (Test-Path $extractPath) {
               Remove-Item -Path $extractPath -Recurse -Force
             }
             Expand-Archive -Path $cliFile.FullName -DestinationPath $extractPath -Force
 
+            # Debug: List contents of extracted directory
             Write-Host "Contents of extracted directory:"
             Get-ChildItem -Path $extractPath -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
 
+            # Find the veracode.exe in the extracted folder
             $veracodeExeFiles = Get-ChildItem -Path $extractPath -Name "veracode.exe" -Recurse -ErrorAction SilentlyContinue
             if ($veracodeExeFiles) {
               $veracodeExeRelativePath = $veracodeExeFiles | Select-Object -First 1
               $veracodeFullPath = Join-Path (Get-Location).Path "$extractPath/$veracodeExeRelativePath"
               $veracodeFullPath = [System.IO.Path]::GetFullPath($veracodeFullPath)
 
+              # Verify the executable exists
               if (Test-Path $veracodeFullPath) {
                 Write-Host "Veracode CLI path: $veracodeFullPath"
                 echo "VERACODE_CLI=$veracodeFullPath" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -217,6 +233,7 @@ jobs:
               exit 1
             }
           } else {
+            # Fallback to PS1 files (legacy format)
             $ps1Files = Get-ChildItem -Filter "*.ps1" -ErrorAction SilentlyContinue
 
             if ($ps1Files) {
@@ -257,7 +274,8 @@ jobs:
                 if ($msbuildPath) {
                   $msbuildDir = [System.IO.Path]::GetDirectoryName($msbuildPath)
                   Write-Host "msbuildDir install check: $msbuildDir"
-
+      
+                  # Persist path across steps
                   "$msbuildDir" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
                   Write-Host "MSBuild path exported to GITHUB_PATH: $msbuildDir"
                 }
@@ -291,11 +309,13 @@ jobs:
           Write-Host "Running: veracode $($packageArgs -join ' ')"
           & $env:VERACODE_CLI @packageArgs
 
+      # ---------------- Error handler ----------------
       - name: Package error
         if: failure()
         run: |
           echo "::error::Veracode static scan faced a problem. Please contact your Veracode administrator for more information."
 
+      # ---------------- Upload artifact ----------------
       - uses: actions/upload-artifact@v7
         with:
           name: veracode-artifact
