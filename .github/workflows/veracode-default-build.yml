@@ -60,11 +60,6 @@ jobs:
       VERACODE_API_KEY_SECRET: '${{ secrets.VERACODE_API_KEY }}'
 
     steps:
-      - name: Install git-lfs
-        run: |
-          apt-get update
-          apt-get install -y git-lfs
-          git lfs install
       - uses: actions/checkout@v6
         with:
           path: 'veracode-helper'
@@ -76,6 +71,7 @@ jobs:
           ref: ${{ inputs.ref }}
           token: ${{ inputs.token }}
           path: 'source-code'
+          lfs: true
 
       - name: Package the application
         id: application_package_linux
@@ -161,15 +157,10 @@ jobs:
       VERACODE_API_KEY_SECRET: '${{ secrets.VERACODE_API_KEY }}'
 
     steps:
-      - name: Install git-lfs
-        run: |
-          apt-get update
-          apt-get install -y git-lfs
-          git lfs install
       - uses: actions/checkout@v6
         with:
           path: 'veracode-helper'
-          # lfs: true
+          lfs: true
 
       - uses: actions/checkout@v6
         with:
@@ -177,6 +168,7 @@ jobs:
           ref: ${{ inputs.ref }}
           token: ${{ inputs.token }}
           path: 'source-code'
+          lfs: true
           
       - name: Run Pre-Build Dependency
         shell: pwsh
