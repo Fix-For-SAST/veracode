@@ -62,9 +62,9 @@ jobs:
     steps:
       - name: Install git-lfs
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git-lfs
-          sudo git lfs install
+          apt-get update
+          apt-get install -y git-lfs
+          git lfs install
       - uses: actions/checkout@v6
         with:
           path: 'veracode-helper'
